@@ -7,7 +7,6 @@ import os
 import sys
 from datetime import datetime
 
-
 def load_and_process_data(file_path):
     """
     Loads and processes the CSV data for a single player.
@@ -25,7 +24,6 @@ def load_and_process_data(file_path):
     data['Player'] = player_name  # Add player name column
     
     return data
-
 
 def main(file1, file2=None, last_month_only=False):
     # Load and process the first file
@@ -92,7 +90,6 @@ def main(file1, file2=None, last_month_only=False):
     
     # Show the plot
     plt.show()
-
 
 if __name__ == "__main__":
     # Example usage: python script.py player1.csv player2.csv --last-month
