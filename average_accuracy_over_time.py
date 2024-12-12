@@ -1,40 +1,72 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import sys
+import os
 
-# Load the CSV file
-file_path = 'output.csv'  # Replace with your actual file path
-data = pd.read_csv(file_path)
+def process_and_plot(file1, file2=None, show_fail=True):
+    def load_and_process_data(file_path):
+        # Load the CSV file
+        data = pd.read_csv(file_path)
+        
+        # Process the data
+        data['Score'] = data['Score'].str.replace(',', '').astype(float)
+        data['Accuracy'] = data['Score'] / 1000000
+        data['Timestamp'] = pd.to_datetime(data['Timestamp'])  # Convert 'Timestamp' to datetime
+        
+        # Separate "E" grade data
+        grade_e_data = data[data['Grade'] == 'E']
+        filtered_data = data[data['Grade'] != 'E']
+        
+        # Group the data biweekly
+        filtered_data['Biweekly'] = filtered_data['Timestamp'].dt.to_period('2W').dt.start_time
+        average_accuracy_biweekly = filtered_data.groupby('Biweekly')['Accuracy'].mean().reset_index()
+        
+        return filtered_data, grade_e_data, average_accuracy_biweekly
 
-# Process the data
-data['Score'] = data['Score'].str.replace(',', '').astype(float)
-data['Accuracy'] = data['Score'] / 1000000
-data['Timestamp'] = pd.to_datetime(data['Timestamp'])  # Convert 'Timestamp' to datetime
+    # Determine player names based on file names
+    player1_name = os.path.splitext(os.path.basename(file1))[0]
+    player2_name = os.path.splitext(os.path.basename(file2))[0] if file2 else None
 
-# Exclude grade "E" and separate them
-grade_e_data = data[data['Grade'] == 'E']
-filtered_data = data[data['Grade'] != 'E']
+    # Load and process data for each file
+    filtered_data1, grade_e_data1, avg_acc_biweekly1 = load_and_process_data(file1)
+    if file2:
+        filtered_data2, grade_e_data2, avg_acc_biweekly2 = load_and_process_data(file2)
 
-# Group the data biweekly
-filtered_data['Biweekly'] = filtered_data['Timestamp'].dt.to_period('2W').dt.start_time
-average_accuracy_biweekly = filtered_data.groupby('Biweekly')['Accuracy'].mean().reset_index()
+    # Plot data
+    plt.figure(figsize=(12, 6))
+    
+    # Plot data for player 1
+    plt.scatter(filtered_data1['Timestamp'], filtered_data1['Accuracy'], color='blue', alpha=0.5, s=50, label=f'{player1_name} Data Points')
+    plt.plot(avg_acc_biweekly1['Biweekly'], avg_acc_biweekly1['Accuracy'], marker='o', linestyle='-', color='blue', linewidth=2, label=f'{player1_name} Average (Biweekly)')
+    if show_fail:
+        plt.scatter(grade_e_data1['Timestamp'], grade_e_data1['Accuracy'], color='blue', alpha=0.3, marker='x', s=100, label=f'{player1_name} Grade E (Excluded)')
 
-# Plot original data points (excluding Grade "E") in gray
-plt.figure(figsize=(12, 6))
-plt.scatter(filtered_data['Timestamp'], filtered_data['Accuracy'], color='gray', alpha=0.5, s=50, label='Individual Data Points')
+    if file2:
+        # Plot data for player 2
+        plt.scatter(filtered_data2['Timestamp'], filtered_data2['Accuracy'], color='green', alpha=0.5, s=50, label=f'{player2_name} Data Points')
+        plt.plot(avg_acc_biweekly2['Biweekly'], avg_acc_biweekly2['Accuracy'], marker='o', linestyle='-', color='green', linewidth=2, label=f'{player2_name} Average (Biweekly)')
+        if show_fail:
+            plt.scatter(grade_e_data2['Timestamp'], grade_e_data2['Accuracy'], color='green', alpha=0.3, marker='x', s=100, label=f'{player2_name} Grade E (Excluded)')
 
-# Plot average accuracy over time (biweekly)
-plt.plot(average_accuracy_biweekly['Biweekly'], average_accuracy_biweekly['Accuracy'], marker='o', linestyle='-', linewidth=2, label='Average Accuracy (Biweekly)')
+    # Add title, labels, and legend
+    plt.title('Comparison of Average Accuracy Over Time (Biweekly)', fontsize=14)
+    plt.xlabel('Date', fontsize=12)
+    plt.ylabel('Accuracy (%)', fontsize=12)
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
 
-# Plot excluded Grade "E" data points as red Xs at 30% opacity
-plt.scatter(grade_e_data['Timestamp'], grade_e_data['Accuracy'], alpha=0.3, color='red', marker='x', s=100, label='Grade E (Excluded)')
+    # Show the plot
+    plt.show()
 
-# Add title, labels, and legend
-plt.title('Average Accuracy Over Time (Biweekly)', fontsize=14)
-plt.xlabel('Date', fontsize=12)
-plt.ylabel('Accuracy (%)', fontsize=12)
-plt.grid(True)
-plt.legend()
-plt.tight_layout()
+# Main script execution
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python script.py <file1.csv> [<file2.csv>] [--no-fail]")
+        sys.exit(1)
 
-# Show the plot
-plt.show()
+    file1 = sys.argv[1]
+    file2 = sys.argv[2] if len(sys.argv) > 2 and not sys.argv[2].startswith('--') else None
+    show_fail = '--no-fail' not in sys.argv
+
+    process_and_plot(file1, file2, show_fail)
